@@ -258,7 +258,7 @@ func check_collisions(delta):
 	
 	for planet in planet_nodes:
 		var planet_position = get_planet_position(planet)
-		if asteroid_target_position.distance_to(planet_position) < (planet["radius"] + collision_effect_radius + 8):
+		if asteroid_target_position.distance_to(planet_position) < (planet["radius"] + collision_effect_radius + 13):
 			handle_asteroid_collision(planet)
 			check_collision_after_travel = false
 			break  # Assuming asteroid hits only one planet per trajectory
