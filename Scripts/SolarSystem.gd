@@ -51,7 +51,7 @@ var collision_effect_radius = 1
 
 # In the main script or a dedicated trajectory script
 @onready var trajectory_line = Line2D.new()
-var asteroid_travel_time = 5.0  # Time to travel from start to target (in seconds)
+var asteroid_travel_time = 3.0  # Time to travel from start to target (in seconds)
 var elapsed_time = 0.0  # Time elapsed since the asteroid started moving
 
 var asteroid_start_position = Vector2.ZERO
@@ -64,6 +64,8 @@ var trajectory_dissolving = false  # Flag to indicate if dissolution is in progr
 
 # Define a buffer distance just off the viewport
 var buffer_distance = 2000  # You can adjust this value as needed
+var check_collision_after_travel = false
+
 
 func _ready():
 	add_child(trajectory_line)
@@ -168,15 +170,16 @@ func create_asteroid_trajectory():
 	
 	print("Asteroid created from ", asteroid_start_position, " to ", asteroid_target_position)
 
-
 func _process(delta):
 	if asteroid_active:
 		elapsed_time += delta
 		var progress = min(elapsed_time / asteroid_travel_time, 1.0)
 		var current_position = lerp(asteroid_start_position, asteroid_target_position, progress)
 		update_trajectory_line(asteroid_start_position, current_position)
+		
 		if progress >= 1.0:
 			asteroid_active = false
+			check_collision_after_travel = true  # Set flag to check collision after reaching target
 			start_dissolving_trajectory()  # Start dissolving the trajectory line
 	
 	trajectory_line.default_color.a = 1.0;
@@ -193,8 +196,10 @@ func _process(delta):
 	# Update planet positions
 	update_planet_positions(delta)
 	
-	# Check for collisions
-	check_collisions(delta)
+	# Check for collisions if flag is set
+	if check_collision_after_travel:
+		check_collisions(delta)  # Perform collision checks after asteroid finishes travel
+		check_collision_after_travel = false  # Reset flag after checking collisions
 	
 	# Update dissolve effect
 	update_pixels(delta)
@@ -218,7 +223,6 @@ func _process(delta):
 	)
 	
 	queue_redraw()
-
 
 func start_dissolving_trajectory():
 	trajectory_dissolving = true
@@ -248,6 +252,27 @@ func check_collisions(delta):
 					planet_b["glow_dissolving"] = true
 					planet_a["glow_dissolve_timer"] = dissolve_duration
 					planet_b["glow_dissolve_timer"] = dissolve_duration
+
+	if not check_collision_after_travel:
+		return
+	
+	for planet in planet_nodes:
+		var planet_position = get_planet_position(planet)
+		if asteroid_target_position.distance_to(planet_position) < (planet["radius"] + collision_effect_radius + 8):
+			handle_asteroid_collision(planet)
+			check_collision_after_travel = false
+			break  # Assuming asteroid hits only one planet per trajectory
+
+
+func handle_asteroid_collision(planet):
+	# Handle collision effect here
+	planet["dissolving"] = true
+	planet["glow_dissolving"] = true
+	planet["glow_dissolve_timer"] = dissolve_duration
+
+	# Optionally, deactivate the asteroid
+	asteroid_active = false
+	trajectory_line.clear_points()
 
 func update_pixels(delta):
 	var planets_to_remove = []
