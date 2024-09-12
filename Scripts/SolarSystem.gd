@@ -47,14 +47,23 @@ var max_orbit_gap = 125
 var perspective_strength = 0.275
 var num_additional_planets = randi_range(0, 10)
 var pixel_size = 8
-var dissolve_duration = 3.0
+var dissolve_duration = 5.0
 var collision_effect_radius = 1
 
+# In the main script or a dedicated trajectory script
+@onready var trajectory_line = Line2D.new()
+var asteroid_travel_time = 3.0  # Time to travel from start to target (in seconds)
+var elapsed_time = 0.0  # Time elapsed since the asteroid started moving
+
 func _ready():
+	add_child(trajectory_line)
+	trajectory_line.default_color = Color(1.0, 0.0, 0.0)  # Red color for the trajectory
+	trajectory_line.width = 2  # Adjust the width as needed
+
 	randomize()
 	initialize_orbits()
 	initialize_planets()
-
+	
 func initialize_orbits():
 	orbit_radii.clear()
 	var last_radius = 0
@@ -98,19 +107,79 @@ func create_pixels_for_planet(planet):
 					"scale": 1.0
 				})
 
+func get_random_planet_target() -> Vector2:
+	if planet_nodes.size() == 0:
+		return Vector2.ZERO  # No planets to target
+	
+	var random_planet = planet_nodes[randi() % planet_nodes.size()]
+	return get_planet_position(random_planet)  # Function to get the current position of the planet
+
+func get_planet_position(planet: Dictionary) -> Vector2:
+	# Get the orbit index and the corresponding orbit radius
+	var orbit_index = planet["orbit_index"]
+	var radius_x = orbit_radii[orbit_index].x
+	var radius_y = orbit_radii[orbit_index].y * (1 - perspective_strength * (orbit_index / orbit_radii.size()))
+
+	# Calculate the position based on the angle and radius
+	var x = cos(planet["angle"]) * radius_x
+	var y = sin(planet["angle"]) * radius_y
+
+	# Apply perspective transformation
+	var planet_position = Vector2(x - y, (x + y) * perspective_strength)
+	
+	# Adjust for the center of the orbit system
+	return planet_position + Vector2.ZERO  # Assuming the center is at (0, 0); adjust if needed
+
+func update_trajectory_line(start_position: Vector2, target_position: Vector2):
+	trajectory_line.clear_points()  # Clear previous trajectory
+	trajectory_line.add_point(start_position)
+	trajectory_line.add_point(target_position)
+
+var asteroid_start_position = Vector2.ZERO
+var asteroid_target_position = Vector2.ZERO
+var asteroid_active = false
+
+func create_asteroid_trajectory():
+	var viewport_size = get_viewport().size
+	
+	# Choose a random off-screen direction
+	var direction = randi() % 4  # Randomly pick a direction (0 = left, 1 = right, 2 = top, 3 = bottom)
+	match direction:
+		0:  # Left of the screen
+			asteroid_start_position = Vector2(-randf_range(1500, 1500), randf() * viewport_size.y)
+		1:  # Right of the screen
+			asteroid_start_position = Vector2(viewport_size.x + randf_range(1500, 1500), randf() * viewport_size.y)
+		2:  # Above the screen
+			asteroid_start_position = Vector2(randf() * viewport_size.x, -randf_range(1500, 1500))
+		3:  # Below the screen
+			asteroid_start_position = Vector2(randf() * viewport_size.x, viewport_size.y + randf_range(1500, 1500))
+	
+	asteroid_target_position = get_planet_position(planet_nodes[randi() % planet_nodes.size()])
+	asteroid_active = true
+	elapsed_time = 0.0  # Reset elapsed time for new trajectory
+	update_trajectory_line(asteroid_start_position, asteroid_target_position)
+	
+	print("Asteroid created from ", asteroid_start_position, " to ", asteroid_target_position)
+
+
 func _process(delta):
+	if asteroid_active:
+		elapsed_time += delta
+		var progress = min(elapsed_time / asteroid_travel_time, 1.0)
+		var current_position = lerp(asteroid_start_position, asteroid_target_position, progress)
+		update_trajectory_line(asteroid_start_position, current_position)
+		if progress >= 1.0:
+			asteroid_active = false
+
 	# Update planet positions
-	for planet_data in planet_nodes:
-		planet_data["angle"] += planet_data["speed"] * delta
-		if planet_data["angle"] > PI * 2:
-			planet_data["angle"] -= PI * 2
+	update_planet_positions(delta)
 	
 	# Check for collisions
 	check_collisions(delta)
 	
 	# Update dissolve effect
 	update_pixels(delta)
-
+	
 	# Update sun color transition timer
 	color_timer += delta
 	if color_timer >= color_transition_time:
@@ -120,7 +189,6 @@ func _process(delta):
 	var next_color_index = (current_color_index + 1) % sun_colors.size()
 	var t = color_timer / color_transition_time
 	
-	# Interpolate between current and next sun color
 	var current_color = sun_colors[current_color_index]
 	var next_color = sun_colors[next_color_index]
 	current_sun_color = Color(
@@ -170,6 +238,14 @@ func update_pixels(delta):
 				planets_to_remove.append(planet)
 	for planet in planets_to_remove:
 		planet_nodes.erase(planet)
+
+func update_planet_positions(delta):
+	for planet in planet_nodes:
+		if not planet["dissolving"]:  # Only update planets that are not dissolving
+			planet["angle"] += planet["speed"] * delta
+			# Ensure angle stays within 0 to 2 * PI
+			planet["angle"] = fmod(planet["angle"], 2 * PI)
+
 
 func _draw():
 	var orbit_center = Vector2(0, 0)
@@ -230,6 +306,9 @@ func draw_isometric_ellipse(center: Vector2, radius_x: float, radius_y: float, c
 func _input(event):
 	if event.is_action_pressed("ui_select"):  # "ui_select" is the default action for the space bar
 		reset_system()
+		
+	if event.is_action_pressed("mouse_left"):  # Check if the left mouse button is pressed
+		create_asteroid_trajectory()  # Start a new asteroid trajectory
 
 func reset_system():
 	# Reinitialize the orbit radii and planets
