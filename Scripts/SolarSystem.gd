@@ -4,6 +4,15 @@ extends Node2D
 @onready var asteroid_sfx = $AsteroidSFX
 @onready var explosion_sfx = $ExplosionSFX
 
+# Camera control variables
+var camera_dragging = false
+var camera_drag_start = Vector2.ZERO
+var camera_zoom = 1.0
+var zoom_speed = 0.1  # Adjust as needed
+
+@onready var camera = $Camera2D  # Assuming Camera2D is a direct child
+
+
 var orbit_radii = []
 var orbit_speeds = [0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025]
 
@@ -47,7 +56,7 @@ var orbit_color = Color(0.2, 0.2, 0.2)
 var orbit_thickness = 5
 var min_orbit_gap = 75
 var max_orbit_gap = 125
-var perspective_strength = 0.275
+var perspective_strength = 0.45
 var num_additional_planets = randi_range(0, 10)
 var pixel_size = 6
 var dissolve_duration = 5.0
@@ -267,7 +276,7 @@ func check_collisions(delta):
 				handle_asteroid_collision(planet)
 				check_collision_after_travel = false
 				explosion_sfx.play()
-				break  # Assuming asteroid hits only one planet per trajectory
+				#break  # Assuming asteroid hits only one planet per trajectory
 
 
 func handle_asteroid_collision(planet):
@@ -363,9 +372,31 @@ func _input(event):
 	if event.is_action_pressed("ui_select"):  # "ui_select" is the default action for the space bar
 		reset_system()
 		
-	if event.is_action_pressed("mouse_left"):  # Check if the left mouse button is pressed
+	if event.is_action_pressed("mouse_left") and not asteroid_active:  # Check if the left mouse button is pressed
 		create_asteroid_trajectory()  # Start a new asteroid trajectory
-		asteroid_sfx.play()	
+		asteroid_sfx.play()
+	
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_MIDDLE:  # Middle mouse button for dragging
+			if event.pressed:
+				camera_dragging = true
+				camera_drag_start = event.position
+			else:
+				camera_dragging = false
+	
+	if event is InputEventMouseMotion and camera_dragging:
+		var drag_delta = event.position - camera_drag_start
+		camera.position -= drag_delta / camera_zoom  # Adjust camera position
+		camera_drag_start = event.position
+	
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_WHEEL_UP:
+		camera_zoom = clamp(camera_zoom * (1 + zoom_speed), 0.1, 3.0)  # Zoom in
+		camera.zoom = Vector2(camera_zoom, camera_zoom)
+	
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		camera_zoom = clamp(camera_zoom * (1 - zoom_speed), 0.1, 3.0)  # Zoom out
+		camera.zoom = Vector2(camera_zoom, camera_zoom)
+
 			
 func reset_system():
 	# Reinitialize the orbit radii and planets
