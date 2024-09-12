@@ -47,7 +47,7 @@ var max_orbit_gap = 125
 var perspective_strength = 0.275
 var num_additional_planets = randi_range(0, 10)
 var pixel_size = 8
-var dissolve_duration = 5.0
+var dissolve_duration = 3.0
 var collision_effect_radius = 1
 
 func _ready():
@@ -79,7 +79,9 @@ func initialize_planets():
 			"orbit_index": orbit_index,
 			"original_speed": orbit_speeds[i % orbit_speeds.size()],
 			"pixels": [],
-			"dissolving": false
+			"dissolving": false,
+			"glow_dissolving": false,  # Add glow dissolving property
+			"glow_dissolve_timer": 0.0  # Add glow dissolve timer
 		})
 		create_pixels_for_planet(planet_nodes[-1])
 
@@ -146,8 +148,13 @@ func check_collisions(delta):
 				var pos_a = Vector2(x_a - y_a, (x_a + y_a) * perspective_strength)
 				var pos_b = Vector2(x_b - y_b, (x_b + y_b) * perspective_strength)
 				if pos_a.distance_to(pos_b) < (planet_a["radius"] + planet_b["radius"] + collision_effect_radius):
+					# Start dissolving for both planets
 					planet_a["dissolving"] = true
 					planet_b["dissolving"] = true
+					planet_a["glow_dissolving"] = true
+					planet_b["glow_dissolving"] = true
+					planet_a["glow_dissolve_timer"] = dissolve_duration
+					planet_b["glow_dissolve_timer"] = dissolve_duration
 
 func update_pixels(delta):
 	var planets_to_remove = []
@@ -166,11 +173,17 @@ func update_pixels(delta):
 
 func _draw():
 	var orbit_center = Vector2(0, 0)
+	
+	# Draw the sun
 	draw_circle(orbit_center, sun_radius, current_sun_color)
+	
+	# Draw the orbits
 	for i in range(orbit_radii.size()):
 		var radius_x = orbit_radii[i].x
 		var radius_y = orbit_radii[i].y * (1 - perspective_strength * (i / orbit_radii.size()))
 		draw_isometric_ellipse(orbit_center, radius_x, radius_y, orbit_color, orbit_thickness)
+	
+	# Draw planets with glow
 	for planet_data in planet_nodes:
 		var orbit_index = planet_data["orbit_index"]
 		var radius_x = orbit_radii[orbit_index].x
@@ -179,10 +192,24 @@ func _draw():
 		var y = sin(planet_data["angle"]) * radius_y
 		var planet_position = orbit_center + Vector2(x - y, (x + y) * perspective_strength)
 		var planet_size = planet_data["radius"] * (1 - perspective_strength * (orbit_index / orbit_radii.size()))
+
+		# Draw the glow effect
+		if planet_data["glow_dissolving"]:
+			var dissolve_progress = min(1.0, planet_data["glow_dissolve_timer"] / dissolve_duration)
+			var glow_color = Color(planet_data["color"].r, planet_data["color"].g, planet_data["color"].b, 0.25 * (1.0 - dissolve_progress))  # Adjust alpha for glow
+			var glow_radius = planet_size * 1.5 * (1.0 - dissolve_progress)  # Adjust the radius for the glow effect
+			draw_circle(planet_position, glow_radius, glow_color)
+		else:
+			var glow_color = Color(planet_data["color"].r, planet_data["color"].g, planet_data["color"].b, 0.25)  # Default glow color
+			var glow_radius = planet_size * 1.5  # Default glow radius
+			draw_circle(planet_position, glow_radius, glow_color)
+		
 		if planet_data["dissolving"]:
+			# Draw dissolving pixels
 			for pixel in planet_data["pixels"]:
 				draw_circle(planet_position + pixel["position"], (pixel_size / 2) * pixel["scale"], pixel["color"])
 		else:
+			# Draw the planet itself
 			draw_circle(planet_position, planet_size, planet_data["color"])
 
 func draw_isometric_ellipse(center: Vector2, radius_x: float, radius_y: float, color: Color, thickness: int):
