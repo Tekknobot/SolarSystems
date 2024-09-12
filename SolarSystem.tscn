@@ -1,6 +1,20 @@
-[gd_scene load_steps=2 format=3 uid="uid://bflvi0ai2bd23"]
+[gd_scene load_steps=3 format=3 uid="uid://bflvi0ai2bd23"]
 
 [ext_resource type="Script" path="res://Scripts/SolarSystem.gd" id="1_1b6oq"]
+
+[sub_resource type="GDScript" id="GDScript_23auw"]
+script/source = "extends Control
+
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	pass # Replace with function body.
+
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta: float) -> void:
+	pass
+"
 
 [node name="SolarSystem" type="Node2D"]
 script = ExtResource("1_1b6oq")
@@ -8,3 +22,10 @@ script = ExtResource("1_1b6oq")
 [node name="Camera2D" type="Camera2D" parent="."]
 
 [node name="Line2D" type="Line2D" parent="."]
+
+[node name="Control" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = SubResource("GDScript_23auw")
