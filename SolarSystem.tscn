@@ -1,6 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://bflvi0ai2bd23"]
+[gd_scene load_steps=5 format=3 uid="uid://bflvi0ai2bd23"]
 
 [ext_resource type="Script" path="res://Scripts/SolarSystem.gd" id="1_1b6oq"]
+[ext_resource type="AudioStream" uid="uid://b8443t8rmcfqm" path="res://Audio/projectile.wav" id="2_i8hk5"]
+[ext_resource type="AudioStream" uid="uid://dbvy58c6dsxf0" path="res://Audio/explosion_8bit.wav" id="3_wg6r7"]
 
 [sub_resource type="GDScript" id="GDScript_23auw"]
 script/source = "extends Control
@@ -29,3 +31,10 @@ anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0
 script = SubResource("GDScript_23auw")
+
+[node name="AsteroidSFX" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("2_i8hk5")
+
+[node name="ExplosionSFX" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_wg6r7")
+bus = &"ExplosionSFX"

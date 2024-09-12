@@ -1,5 +1,9 @@
 extends Node2D
 
+# AudioStreamPlayer nodes
+@onready var asteroid_sfx = $AsteroidSFX
+@onready var explosion_sfx = $ExplosionSFX
+
 var orbit_radii = []
 var orbit_speeds = [0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025]
 
@@ -261,6 +265,7 @@ func check_collisions(delta):
 		if asteroid_target_position.distance_to(planet_position) < (planet["radius"] + collision_effect_radius + 13):
 			handle_asteroid_collision(planet)
 			check_collision_after_travel = false
+			explosion_sfx.play()
 			break  # Assuming asteroid hits only one planet per trajectory
 
 
@@ -359,7 +364,8 @@ func _input(event):
 		
 	if event.is_action_pressed("mouse_left"):  # Check if the left mouse button is pressed
 		create_asteroid_trajectory()  # Start a new asteroid trajectory
-
+		asteroid_sfx.play()	
+			
 func reset_system():
 	# Reinitialize the orbit radii and planets
 	orbit_radii.clear()
