@@ -1,8 +1,7 @@
 extends Node2D
 
 var orbit_radii = []
-var orbit_speeds = [0.5, 0.4, 0.35, 0.3, 0.25, 0.2, 0.18, 0.15, 0.12, 0.1]
-
+var orbit_speeds = [0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025]
 
 var planet_colors = [
 	Color(0.2, 0.4, 0.8),  # Earth Blue (Ocean)
@@ -52,12 +51,23 @@ var collision_effect_radius = 1
 
 # In the main script or a dedicated trajectory script
 @onready var trajectory_line = Line2D.new()
-var asteroid_travel_time = 3.0  # Time to travel from start to target (in seconds)
+var asteroid_travel_time = 5.0  # Time to travel from start to target (in seconds)
 var elapsed_time = 0.0  # Time elapsed since the asteroid started moving
+
+var asteroid_start_position = Vector2.ZERO
+var asteroid_target_position = Vector2.ZERO
+var asteroid_active = false
+
+var trajectory_dissolve_duration = 1.0  # Duration to dissolve the trajectory line (in seconds)
+var trajectory_dissolve_timer = 0.0  # Timer to track dissolution progress
+var trajectory_dissolving = false  # Flag to indicate if dissolution is in progress
+
+# Define a buffer distance just off the viewport
+var buffer_distance = 2000  # You can adjust this value as needed
 
 func _ready():
 	add_child(trajectory_line)
-	trajectory_line.default_color = Color(1.0, 0.0, 0.0)  # Red color for the trajectory
+	trajectory_line.default_color = Color(1.0, 1.0, 1.0)  # Red color for the trajectory
 	trajectory_line.width = 2  # Adjust the width as needed
 
 	randomize()
@@ -135,25 +145,22 @@ func update_trajectory_line(start_position: Vector2, target_position: Vector2):
 	trajectory_line.add_point(start_position)
 	trajectory_line.add_point(target_position)
 
-var asteroid_start_position = Vector2.ZERO
-var asteroid_target_position = Vector2.ZERO
-var asteroid_active = false
 
 func create_asteroid_trajectory():
 	var viewport_size = get_viewport().size
-	
+
 	# Choose a random off-screen direction
 	var direction = randi() % 4  # Randomly pick a direction (0 = left, 1 = right, 2 = top, 3 = bottom)
 	match direction:
 		0:  # Left of the screen
-			asteroid_start_position = Vector2(-randf_range(1500, 1500), randf() * viewport_size.y)
+			asteroid_start_position = Vector2(-buffer_distance, randf_range(0, viewport_size.y))
 		1:  # Right of the screen
-			asteroid_start_position = Vector2(viewport_size.x + randf_range(1500, 1500), randf() * viewport_size.y)
+			asteroid_start_position = Vector2(viewport_size.x + buffer_distance, randf_range(0, viewport_size.y))
 		2:  # Above the screen
-			asteroid_start_position = Vector2(randf() * viewport_size.x, -randf_range(1500, 1500))
+			asteroid_start_position = Vector2(randf_range(0, viewport_size.x), -buffer_distance)
 		3:  # Below the screen
-			asteroid_start_position = Vector2(randf() * viewport_size.x, viewport_size.y + randf_range(1500, 1500))
-	
+			asteroid_start_position = Vector2(randf_range(0, viewport_size.x), viewport_size.y + buffer_distance)
+
 	asteroid_target_position = get_planet_position(planet_nodes[randi() % planet_nodes.size()])
 	asteroid_active = true
 	elapsed_time = 0.0  # Reset elapsed time for new trajectory
@@ -170,6 +177,18 @@ func _process(delta):
 		update_trajectory_line(asteroid_start_position, current_position)
 		if progress >= 1.0:
 			asteroid_active = false
+			start_dissolving_trajectory()  # Start dissolving the trajectory line
+	
+	trajectory_line.default_color.a = 1.0;
+	
+	if trajectory_dissolving:
+		trajectory_dissolve_timer += delta
+		var dissolve_progress = min(trajectory_dissolve_timer / trajectory_dissolve_duration, 1.0)
+		trajectory_line.default_color.a = 1.0 - dissolve_progress  # Fade out the line
+
+		if dissolve_progress >= 1.0:
+			trajectory_dissolving = false
+			trajectory_line.clear_points()  # Remove the trajectory line after dissolving
 
 	# Update planet positions
 	update_planet_positions(delta)
@@ -199,6 +218,12 @@ func _process(delta):
 	)
 	
 	queue_redraw()
+
+
+func start_dissolving_trajectory():
+	trajectory_dissolving = true
+	trajectory_dissolve_timer = 0.0  # Reset the dissolve timer
+
 
 func check_collisions(delta):
 	for i in range(planet_nodes.size()):
