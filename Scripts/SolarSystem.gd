@@ -5,22 +5,23 @@ var orbit_speeds = [  # Speed for each planet (you can adjust these values)
 	0.5, 0.4, 0.35, 0.3, 0.25, 0.2, 0.18, 0.15, 0.12, 0.1
 ]
 
-var planet_colors = [  # Colors for each planet (minimal, simple colors)
-	Color(1, 0, 0),    # Red
-	Color(0, 1, 0),    # Green
-	Color(0, 0, 1),    # Blue
-	Color(1, 1, 0),    # Yellow
-	Color(1, 0, 1),    # Magenta
-	Color(0, 1, 1),    # Cyan
-	Color(0.5, 0, 0),  # Dark Red
-	Color(0, 0.5, 0),  # Dark Green
-	Color(0, 0, 0.5),  # Dark Blue
-	Color(0.5, 0.5, 0.5) # Gray
+var planet_colors = [
+	Color(0.2, 0.4, 0.8),  # Earth Blue (Ocean)
+	Color(0.0, 0.5, 0.2),  # Earth Green (Forests)
+	Color(0.6, 0.3, 0.1),  # Earth Brown (Land)
+	Color(0.8, 0.8, 0.8),  # Earth White (Clouds)
+	Color(0.8, 0.2, 0.1),  # Mars Red (Surface)
+	Color(0.9, 0.6, 0.4),  # Mars Orange (Dunes)
+	Color(0.7, 0.5, 0.3),  # Mars Beige (Soil)
+	Color(0.5, 0.3, 0.2),  # Mars Dark Brown (Canyons)
+	Color(0.6, 0.4, 0.3),  # Mars Light Brown (Rock formations)
+	Color(0.9, 0.7, 0.5)   # Mars Pale Orange (Dust storms)
 ]
 
 var sun_radius = 89  # Radius for the sun
 var planet_nodes = []  # Holds the planets
 var orbit_color = Color(0.2, 0.2, 0.2) # Light color for orbit lines
+var orbit_thickness = 5  # Adjustable thickness for orbits
 var min_orbit_gap = 75  # Minimum distance between consecutive orbits
 var max_orbit_gap = 125  # Maximum distance between consecutive orbits
 var perspective_strength = 0.275  # Perspective strength (0 for no perspective, 1 for full perspective effect)
@@ -31,7 +32,7 @@ var collision_effect_radius = 1
 
 func _ready():
 	randomize()  # Initialize random number generator
-	var orbit_center = Vector2(400, 300)
+	var orbit_center = Vector2(0, 0)
 	
 	# Initialize fixed orbit radii
 	initialize_orbits()
@@ -158,7 +159,7 @@ func update_pixels(delta):
 		planet_nodes.erase(planet)
 
 func _draw():
-	var orbit_center = Vector2(400, 300)
+	var orbit_center = Vector2(0, 0)
 	
 	# Draw the sun
 	draw_circle(orbit_center, sun_radius, Color(1, 1, 0))  # Sun color (yellow)
@@ -167,7 +168,7 @@ func _draw():
 	for i in range(orbit_radii.size()):
 		var radius_x = orbit_radii[i].x
 		var radius_y = orbit_radii[i].y * (1 - perspective_strength * (i / orbit_radii.size())) # Apply perspective
-		draw_isometric_ellipse(orbit_center, radius_x, radius_y, orbit_color, 2) # Draw ellipse with light color
+		draw_isometric_ellipse(orbit_center, radius_x, radius_y, orbit_color, orbit_thickness) # Draw ellipse with adjustable thickness
 
 	# Draw planets and dissolve effect
 	for planet_data in planet_nodes:
