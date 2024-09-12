@@ -276,8 +276,8 @@ func check_collisions(delta):
 				handle_asteroid_collision(planet)
 				check_collision_after_travel = false
 				explosion_sfx.play()
-				#break  # Assuming asteroid hits only one planet per trajectory
-
+				break  # Assuming asteroid hits only one planet per trajectory
+		break
 
 func handle_asteroid_collision(planet):
 	# Handle collision effect here
