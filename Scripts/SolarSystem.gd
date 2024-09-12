@@ -24,9 +24,10 @@ var orbit_color = Color(0.2, 0.2, 0.2) # Light color for orbit lines
 var min_orbit_gap = 75  # Minimum distance between consecutive orbits
 var max_orbit_gap = 125  # Maximum distance between consecutive orbits
 var perspective_strength = 0.275  # Perspective strength (0 for no perspective, 1 for full perspective effect)
-var num_additional_planets = randi_range(0, 50)  # Additional planets to add to the system (adjustable)
-var collision_effect_radius = 0.1  # Additional radius for collision effect
-var flash_duration = 0.1  # Duration of the flash effect
+var num_additional_planets = randi_range(0, 10)  # Additional planets to add to the system (adjustable)
+var pixel_size = 8  # Size of the pixel pieces
+var dissolve_duration = 5.0  # Duration of the dissolve effect
+var collision_effect_radius = 1
 
 func _ready():
 	randomize()  # Initialize random number generator
@@ -57,7 +58,7 @@ func initialize_planets():
 	# Initialize planets with random sizes and starting angles
 	for i in range(orbit_radii.size() + num_additional_planets):
 		var orbit_index = (i + 2) % orbit_radii.size()  # Adjust to skip first two orbits
-		var radius = randi_range(5, 34)  # Randomize the planet radius between 5 and 34
+		var radius = randi_range(8, 34)  # Randomize the planet radius between 5 and 34
 		planet_nodes.append({
 			"color": planet_colors[i % planet_colors.size()],  # Cycle through colors if needed
 			"original_color": planet_colors[i % planet_colors.size()],  # Store the original color
@@ -66,8 +67,24 @@ func initialize_planets():
 			"speed": orbit_speeds[i % orbit_speeds.size()],  # Cycle through speeds if needed
 			"orbit_index": orbit_index,  # Track which orbit this planet belongs to
 			"original_speed": orbit_speeds[i % orbit_speeds.size()],  # Store the original speed
-			"flash_timer": -1  # Timer for flashing effect
+			"pixels": [],  # List of pixels representing the planet
+			"dissolving": false  # Flag to indicate if the planet is dissolving
 		})
+		# Create pixels for each planet
+		create_pixels_for_planet(planet_nodes[-1])
+
+func create_pixels_for_planet(planet):
+	var pixel_radius = pixel_size / 2
+	for x in range(-planet["radius"], planet["radius"], pixel_size):
+		for y in range(-planet["radius"], planet["radius"], pixel_size):
+			if x * x + y * y <= planet["radius"] * planet["radius"]:
+				planet["pixels"].append({
+					"position": Vector2(x, y),
+					"color": planet["color"],
+					"lifetime": dissolve_duration,
+					"velocity": Vector2(randf_range(-50, 50), randf_range(-50, 50)),
+					"scale": 1.0  # Initial scale of 1.0 (normal size)
+				})
 
 func _process(delta):
 	# Update planet positions
@@ -82,8 +99,8 @@ func _process(delta):
 	# Check for collisions
 	check_collisions(delta)
 	
-	# Update flash effect timers
-	update_flash_effects(delta)
+	# Update pixels for dissolving effect
+	update_pixels(delta)
 	
 	queue_redraw()  # Request a redraw
 
@@ -112,27 +129,33 @@ func check_collisions(delta):
 				
 				# Check distance between planets
 				if pos_a.distance_to(pos_b) < (planet_a["radius"] + planet_b["radius"] + collision_effect_radius):
-					# Apply a flashing effect (black and white)
-					apply_flash_effect(planet_a)
-					apply_flash_effect(planet_b)
+					# Start dissolving effect
+					planet_a["dissolving"] = true
+					planet_b["dissolving"] = true
 
-func apply_flash_effect(planet):
-	# Start or update the flash timer
-	if planet["flash_timer"] < 0:
-		planet["flash_timer"] = flash_duration
-		planet["color"] = Color(1, 1, 1)  # Flash to white
-	else:
-		# Set the color to flash and adjust the timer
-		planet["color"] = Color(1, 1, 1)
-		planet["flash_timer"] = max(planet["flash_timer"], flash_duration)
+func update_pixels(delta):
+	var planets_to_remove = []  # List of planets to remove after updating
+	for planet in planet_nodes:
+		if planet["dissolving"]:
+			for pixel in planet["pixels"]:
+				# Move the pixel by its velocity
+				pixel["position"] += pixel["velocity"] * delta
+				
+				# Reduce lifetime and scale
+				pixel["lifetime"] -= delta
+				pixel["scale"] = max(0.0, pixel["scale"] - delta * (1.0 / dissolve_duration))  # Gradually shrink the pixel
+				
+				# Remove the pixel when its lifetime is over
+				if pixel["lifetime"] <= 0 or pixel["scale"] <= 0:
+					planet["pixels"].erase(pixel)
+			
+			# If all pixels are gone, mark the planet for removal
+			if len(planet["pixels"]) == 0:
+				planets_to_remove.append(planet)
 
-func update_flash_effects(delta):
-	for planet_data in planet_nodes:
-		if planet_data["flash_timer"] > 0:
-			planet_data["flash_timer"] -= delta
-			if planet_data["flash_timer"] <= 0:
-				planet_data["color"] = planet_data["original_color"]  # Return to original color
-				planet_data["flash_timer"] = -1  # Stop flashing
+	# Remove the planets that have fully dissolved
+	for planet in planets_to_remove:
+		planet_nodes.erase(planet)
 
 func _draw():
 	var orbit_center = Vector2(400, 300)
@@ -146,10 +169,8 @@ func _draw():
 		var radius_y = orbit_radii[i].y * (1 - perspective_strength * (i / orbit_radii.size())) # Apply perspective
 		draw_isometric_ellipse(orbit_center, radius_x, radius_y, orbit_color, 2) # Draw ellipse with light color
 
-	# Draw planets with isometric perspective
-	for i in range(planet_nodes.size()):
-		var planet_data = planet_nodes[i]
-		
+	# Draw planets and dissolve effect
+	for planet_data in planet_nodes:
 		# Get orbit radii with perspective
 		var orbit_index = planet_data["orbit_index"]  # Determine which orbit this planet belongs to
 		var radius_x = orbit_radii[orbit_index].x
@@ -163,7 +184,14 @@ func _draw():
 		var planet_position = orbit_center + Vector2(x - y, (x + y) * perspective_strength)
 		# Apply perspective effect on the planet size
 		var planet_size = planet_data["radius"] * (1 - perspective_strength * (orbit_index / orbit_radii.size()))
-		draw_circle(planet_position, planet_size, planet_data["color"])
+		
+		# Draw dissolving pixels
+		if planet_data["dissolving"]:
+			for pixel in planet_data["pixels"]:
+				# Draw the pixel with its shrinking size (scale)
+				draw_circle(planet_position + pixel["position"], (pixel_size / 2) * pixel["scale"], pixel["color"])
+		else:
+			draw_circle(planet_position, planet_size, planet_data["color"])
 
 # Helper function to draw an ellipse (or a circle) using lines with isometric perspective
 func draw_isometric_ellipse(center: Vector2, radius_x: float, radius_y: float, color: Color, thickness: int):
