@@ -49,7 +49,7 @@ var min_orbit_gap = 75
 var max_orbit_gap = 125
 var perspective_strength = 0.275
 var num_additional_planets = randi_range(0, 10)
-var pixel_size = 8
+var pixel_size = 6
 var dissolve_duration = 5.0
 var collision_effect_radius = 1
 
@@ -167,12 +167,13 @@ func create_asteroid_trajectory():
 		3:  # Below the screen
 			asteroid_start_position = Vector2(randf_range(0, viewport_size.x), viewport_size.y + buffer_distance)
 
-	asteroid_target_position = get_planet_position(planet_nodes[randi() % planet_nodes.size()])
+	asteroid_target_position = get_global_mouse_position() #get_planet_position(planet_nodes[randi() % planet_nodes.size()])
 	asteroid_active = true
 	elapsed_time = 0.0  # Reset elapsed time for new trajectory
 	update_trajectory_line(asteroid_start_position, asteroid_target_position)
 	
 	print("Asteroid created from ", asteroid_start_position, " to ", asteroid_target_position)
+
 
 func _process(delta):
 	if asteroid_active:
@@ -257,16 +258,16 @@ func check_collisions(delta):
 					planet_a["glow_dissolve_timer"] = dissolve_duration
 					planet_b["glow_dissolve_timer"] = dissolve_duration
 
-	if not check_collision_after_travel:
-		return
-	
-	for planet in planet_nodes:
-		var planet_position = get_planet_position(planet)
-		if asteroid_target_position.distance_to(planet_position) < (planet["radius"] + collision_effect_radius + 13):
-			handle_asteroid_collision(planet)
-			check_collision_after_travel = false
-			explosion_sfx.play()
-			break  # Assuming asteroid hits only one planet per trajectory
+		if not check_collision_after_travel:
+			return
+		
+		for planet in planet_nodes:
+			var planet_position = get_planet_position(planet)
+			if asteroid_target_position.distance_to(planet_position) < (planet["radius"] + collision_effect_radius):
+				handle_asteroid_collision(planet)
+				check_collision_after_travel = false
+				explosion_sfx.play()
+				break  # Assuming asteroid hits only one planet per trajectory
 
 
 func handle_asteroid_collision(planet):
