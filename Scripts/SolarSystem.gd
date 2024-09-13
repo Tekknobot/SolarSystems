@@ -16,6 +16,10 @@ var element_names = [
 	"Blizzard", "Inferno", "Titania", "Nebulon", "Quasar", "Nebulix", "Stellar", "Rover"
 ]
 
+# Track positions and visibility of planet names
+var planet_name_positions = {}  # Key: planet ID, Value: Vector2 position
+var planet_name_visibility = {}  # Key: planet ID, Value: bool (visible or not)
+
 # Hover detection radius
 var hover_radius = 50  # You can adjust this value as needed
 
@@ -100,7 +104,6 @@ var trajectory_dissolving = false  # Flag to indicate if dissolution is in progr
 var buffer_distance = 2000  # You can adjust this value as needed
 var check_collision_after_travel = false
 
-
 func _ready():
 	add_child(trajectory_line)
 	trajectory_line.default_color = Color(1.0, 1.0, 1.0)  # Red color for the trajectory
@@ -127,7 +130,9 @@ func initialize_planets():
 	for i in range(orbit_radii.size() + num_additional_planets):
 		var orbit_index = (i + 2) % orbit_radii.size()
 		var radius = randi_range(8, 34)
+		var planet_id = i  # Unique ID for each planet
 		planet_nodes.append({
+			"id": planet_id,
 			"color": planet_colors[i % planet_colors.size()],
 			"original_color": planet_colors[i % planet_colors.size()],
 			"radius": radius,
@@ -137,8 +142,8 @@ func initialize_planets():
 			"original_speed": orbit_speeds[i % orbit_speeds.size()],
 			"pixels": [],
 			"dissolving": false,
-			"glow_dissolving": false,  # Add glow dissolving property
-			"glow_dissolve_timer": 0.0  # Add glow dissolve timer
+			"glow_dissolving": false,
+			"glow_dissolve_timer": 0.0
 		})
 		create_pixels_for_planet(planet_nodes[-1])
 
@@ -314,6 +319,7 @@ func handle_asteroid_collision(planet):
 
 func update_pixels(delta):
 	var planets_to_remove = []
+	
 	for planet in planet_nodes:
 		if planet["dissolving"]:
 			for pixel in planet["pixels"]:
@@ -322,10 +328,15 @@ func update_pixels(delta):
 				pixel["scale"] = max(0.0, pixel["scale"] - delta * (1.0 / dissolve_duration))
 				if pixel["lifetime"] <= 0 or pixel["scale"] <= 0:
 					planet["pixels"].erase(pixel)
+			
 			if len(planet["pixels"]) == 0:
 				planets_to_remove.append(planet)
+	
+	# Remove planets after processing
 	for planet in planets_to_remove:
 		planet_nodes.erase(planet)
+		planet_names.erase(planet["id"])  # Remove the name entry using the unique ID
+
 
 func update_planet_positions(delta):
 	for planet in planet_nodes:
@@ -336,26 +347,21 @@ func update_planet_positions(delta):
 
 # Function to assign names to planets based on a random element
 func assign_planet_names():
-	# Ensure planet_nodes array is not empty
 	if planet_nodes.size() == 0:
 		print("Error: No planets found.")
 		return
 
-	# Seed the random number generator for more randomness
 	randomize()
-	
-	# Iterate through the planet_nodes array
-	for i in range(planet_nodes.size()):
-		# Select a random index from the element_names list
-		var random_index = randi() % element_names.size()
-		var planet_name = element_names[random_index]  # Get the element name based on the random index
-		
-		# Assign the name to the dictionary with the index as the key
-		planet_names[i] = planet_name
 
-		# Optionally, if your planet nodes have a property or method for setting the name,
-		# you can update it here. For example, if the nodes have a `name` property:
-		# planet_nodes[i].name = planet_name
+	# Clear previous names
+	planet_names.clear()
+
+	for planet in planet_nodes:
+		var random_index = randi() % element_names.size()
+		var planet_name = element_names[random_index]
+
+		# Use the unique ID as the key
+		planet_names[planet["id"]] = planet_name
 
 func _draw():
 	var orbit_center = Vector2(0, 0)
@@ -382,41 +388,28 @@ func _draw():
 		# Draw the glow effect
 		if planet_data["glow_dissolving"]:
 			var dissolve_progress = min(1.0, planet_data["glow_dissolve_timer"] / dissolve_duration)
-			var glow_color = Color(planet_data["color"].r, planet_data["color"].g, planet_data["color"].b, 0.25 * (1.0 - dissolve_progress))  # Adjust alpha for glow
-			var glow_radius = planet_size * 1.5 * (1.0 - dissolve_progress)  # Adjust the radius for the glow effect
+			var glow_color = Color(planet_data["color"].r, planet_data["color"].g, planet_data["color"].b, 0.25 * (1.0 - dissolve_progress))
+			var glow_radius = planet_size * 1.5 * (1.0 - dissolve_progress)
 			draw_circle(planet_position, glow_radius, glow_color)
 		else:
-			var glow_color = Color(planet_data["color"].r, planet_data["color"].g, planet_data["color"].b, 0.25)  # Default glow color
-			var glow_radius = planet_size * 1.5  # Default glow radius
+			var glow_color = Color(planet_data["color"].r, planet_data["color"].g, planet_data["color"].b, 0.25)
+			var glow_radius = planet_size * 1.5
 			draw_circle(planet_position, glow_radius, glow_color)
 		
 		if planet_data["dissolving"]:
-			# Draw dissolving pixels
 			for pixel in planet_data["pixels"]:
 				draw_circle(planet_position + pixel["position"], (pixel_size / 2) * pixel["scale"], pixel["color"])
 		else:
-			# Draw the planet itself
 			draw_circle(planet_position, planet_size, planet_data["color"])
 
-	
-	var font : Font = preload("res://Assets/fonts/magofonts/mago1.ttf")  # Load your font
-
-	for i in range(planet_nodes.size()):
-		var planet_data = planet_nodes[i]
-		var planet_position = get_planet_position(planet_data)
-		var planet_radius = planet_data["radius"]
-		var planet_color = planet_data["color"]
-		var planet_name = planet_names[i]  # Use the index to get the name
-
-		# Calculate position for the text within the planet's radius
-		var text_position = planet_position
-		
-		# Ensure text is within the radius of the planet
-		while text_position.distance_to(planet_position) > planet_radius:
-			text_position = planet_position + Vector2(randf_range(-planet_radius, planet_radius), randf_range(-planet_radius, planet_radius))
-
 		# Draw the planet name
-		draw_string(font, text_position, planet_name, 0, -1, 32, Color(1, 1, 1))  # Adjust text color as needed
+		var planet_name = planet_names.get(planet_data["id"], "")  # Default to empty string if no name
+		var text_position = planet_position
+		while text_position.distance_to(planet_position) > planet_size:
+			text_position = planet_position + Vector2(randf_range(-planet_size, planet_size), randf_range(-planet_size, planet_size))
+		
+		var font : Font = preload("res://Assets/fonts/magofonts/mago1.ttf")  # Load your font
+		draw_string(font, text_position, planet_name, 0, -1, 32, Color(1, 1, 1))
 
 func draw_isometric_ellipse(center: Vector2, radius_x: float, radius_y: float, color: Color, thickness: int):
 	var points = []
