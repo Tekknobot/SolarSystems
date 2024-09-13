@@ -30,6 +30,8 @@ var hovered_planet_name = ""
 @onready var asteroid_sfx = $AsteroidSFX
 @onready var explosion_sfx = $ExplosionSFX
 
+@onready var galaxy_info = $Control/CanvasLayer/GalaxyInfo
+
 # Camera control variables
 var camera_dragging = false
 var camera_drag_start = Vector2.ZERO
@@ -79,8 +81,8 @@ var current_sun_color = sun_colors[0]  # Initial sun color
 var sun_radius = 89
 var orbit_color = Color(0.2, 0.2, 0.2)
 var orbit_thickness = 5
-var min_orbit_gap = 75
-var max_orbit_gap = 125
+var min_orbit_gap = 50
+var max_orbit_gap = 100
 var perspective_strength = 0.45
 var num_additional_planets = randi_range(0, 10)
 var pixel_size = 6
@@ -263,6 +265,8 @@ func _process(delta):
 		lerp(current_color.b, next_color.b, t),
 		lerp(current_color.a, next_color.a, t)
 	)
+	
+	galaxy_info.text = "Planets in System: " + str(planet_nodes.size())
 	
 	queue_redraw()
 
