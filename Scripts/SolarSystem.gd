@@ -1,5 +1,14 @@
 extends Node2D
 
+# Add a dictionary to store planet names
+var planet_names = {}  # This is declared at the class level
+
+# Hover detection radius
+var hover_radius = 50  # You can adjust this value as needed
+
+# Store the hovered planet's name
+var hovered_planet_name = ""
+
 # AudioStreamPlayer nodes
 @onready var asteroid_sfx = $AsteroidSFX
 @onready var explosion_sfx = $ExplosionSFX
@@ -88,6 +97,8 @@ func _ready():
 	randomize()
 	initialize_orbits()
 	initialize_planets()
+	
+	assign_planet_names()
 	
 func initialize_orbits():
 	orbit_radii.clear()
@@ -311,6 +322,11 @@ func update_planet_positions(delta):
 			# Ensure angle stays within 0 to 2 * PI
 			planet["angle"] = fmod(planet["angle"], 2 * PI)
 
+# Assign names to planets based on their index
+func assign_planet_names():
+	for i in range(planet_nodes.size()):
+		planet_names[i] = "Planet " + str(i + 1)  # Use the index as the key
+
 
 func _draw():
 	var orbit_center = Vector2(0, 0)
@@ -352,6 +368,26 @@ func _draw():
 		else:
 			# Draw the planet itself
 			draw_circle(planet_position, planet_size, planet_data["color"])
+
+	
+	var font : Font = preload("res://Assets/fonts/magofonts/mago1.ttf")  # Load your font
+
+	for i in range(planet_nodes.size()):
+		var planet_data = planet_nodes[i]
+		var planet_position = get_planet_position(planet_data)
+		var planet_radius = planet_data["radius"]
+		var planet_color = planet_data["color"]
+		var planet_name = planet_names[i]  # Use the index to get the name
+
+		# Calculate position for the text within the planet's radius
+		var text_position = planet_position
+		
+		# Ensure text is within the radius of the planet
+		while text_position.distance_to(planet_position) > planet_radius:
+			text_position = planet_position + Vector2(randf_range(-planet_radius, planet_radius), randf_range(-planet_radius, planet_radius))
+
+		# Draw the planet name
+		draw_string(font, text_position, planet_name, 0, -1, 32, Color(1, 1, 1))  # Adjust text color as needed
 
 func draw_isometric_ellipse(center: Vector2, radius_x: float, radius_y: float, color: Color, thickness: int):
 	var points = []
@@ -405,3 +441,5 @@ func reset_system():
 	
 	initialize_orbits()
 	initialize_planets()  # Reinitialize planets with new sizes and angles
+	
+	assign_planet_names()
