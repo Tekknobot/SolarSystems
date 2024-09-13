@@ -1,7 +1,20 @@
 extends Node2D
 
-# Add a dictionary to store planet names
-var planet_names = {}  # This is declared at the class level
+# Initialize an array to hold your planet nodes
+var planet_nodes = []  # Replace with your actual planet nodes initialization
+# Initialize an empty dictionary to store planet names
+var planet_names = {}
+
+# List of nicknames
+var element_names = [
+	"Spark", "Blaze", "Frost", "Echo", "Nova", "Zenith", "Vortex", "Pulse",
+	"Quasar", "Eclipse", "Comet", "Nebula", "Starlight", "Orbit", "Meteor", "Aurora",
+	"Titan", "Rex", "Echo", "Strider", "Horizon", "Fusion", "Lunar", "Solar",
+	"Nebulon", "Galaxia", "Zenon", "Storm", "Quasar", "Pulse", "Ion", "Phantom",
+	"Echo", "Vertex", "Nexus", "Vortex", "Spectra", "Radiant", "Tempest", "Comet",
+	"Orbitron", "Astro", "Aurora", "Stratos", "Zephyr", "Vanguard", "Mirage", "Drift",
+	"Blizzard", "Inferno", "Titania", "Nebulon", "Quasar", "Nebulix", "Stellar", "Rover"
+]
 
 # Hover detection radius
 var hover_radius = 50  # You can adjust this value as needed
@@ -60,7 +73,6 @@ var color_timer = 0.0
 var current_sun_color = sun_colors[0]  # Initial sun color
 
 var sun_radius = 89
-var planet_nodes = []
 var orbit_color = Color(0.2, 0.2, 0.2)
 var orbit_thickness = 5
 var min_orbit_gap = 75
@@ -322,11 +334,28 @@ func update_planet_positions(delta):
 			# Ensure angle stays within 0 to 2 * PI
 			planet["angle"] = fmod(planet["angle"], 2 * PI)
 
-# Assign names to planets based on their index
+# Function to assign names to planets based on a random element
 func assign_planet_names():
-	for i in range(planet_nodes.size()):
-		planet_names[i] = "Planet " + str(i + 1)  # Use the index as the key
+	# Ensure planet_nodes array is not empty
+	if planet_nodes.size() == 0:
+		print("Error: No planets found.")
+		return
 
+	# Seed the random number generator for more randomness
+	randomize()
+	
+	# Iterate through the planet_nodes array
+	for i in range(planet_nodes.size()):
+		# Select a random index from the element_names list
+		var random_index = randi() % element_names.size()
+		var planet_name = element_names[random_index]  # Get the element name based on the random index
+		
+		# Assign the name to the dictionary with the index as the key
+		planet_names[i] = planet_name
+
+		# Optionally, if your planet nodes have a property or method for setting the name,
+		# you can update it here. For example, if the nodes have a `name` property:
+		# planet_nodes[i].name = planet_name
 
 func _draw():
 	var orbit_center = Vector2(0, 0)
