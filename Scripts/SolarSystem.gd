@@ -434,12 +434,12 @@ func _input(event):
 	if event.is_action_pressed("ui_select"):  # "ui_select" is the default action for the space bar
 		reset_system()
 		
-	if event.is_action_pressed("mouse_left") and not asteroid_active:  # Check if the left mouse button is pressed
+	if event.is_action_pressed("mouse_right") and not asteroid_active:  # Check if the left mouse button is pressed
 		create_asteroid_trajectory()  # Start a new asteroid trajectory
 		asteroid_sfx.play()
 	
 	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_MIDDLE:  # Middle mouse button for dragging
+		if event.button_index == MOUSE_BUTTON_LEFT:  # Middle mouse button for dragging
 			if event.pressed:
 				camera_dragging = true
 				camera_drag_start = event.position
